@@ -35,6 +35,17 @@ class TrackPoint(BaseModel):
     rssi_dbm: float
 
 
+class EvidenceItem(BaseModel):
+
+    feature: str          # machine name, e.g. "heading_std_deg"
+    label: str            # human name, e.g. "Turn per report"
+    value: float
+    display_value: str    # pre-formatted with its unit
+    contribution: float   # how far it moved the predicted probability
+    direction: str        # "supports" | "opposes"
+    statement: str        # a sentence the operator can check
+
+
 class TrackOut(BaseModel):
 
     track_id: str
@@ -57,6 +68,10 @@ class TrackOut(BaseModel):
     detection_count: int
     closest_approach_m: float
     in_alert_zone: bool
+
+    # Why the classifier decided what it decided.
+    evidence: list[EvidenceItem]
+    evidence_summary: str
 
     history: list[TrackPoint]
 

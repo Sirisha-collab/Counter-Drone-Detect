@@ -5,7 +5,12 @@ from datetime import datetime, timedelta, timezone
 from .config import settings
 from .geo import compass_label
 from .ml.classifier import classifier
-from .schemas import EventOut, TrackOut, TrackPoint
+from .schemas import EventOut, EvidenceItem, TrackOut, TrackPoint
+
+
+# How often to rebuild a track's evidence, in ticks. At the default 2 s tick
+# that is roughly every 10 seconds per track.
+EXPLAIN_EVERY_N_TICKS = 5
 
 
 @dataclass
@@ -16,13 +21,18 @@ class Track:
     ground_truth: str
 
     latest: dict = field(default_factory=dict)
+    # Ring buffer of previous *reports* — drives both the map trail and the
+    # per-channel sparklines, so it holds the whole detection, not just x/y.
     history: deque = field(default_factory=lambda: deque(maxlen=settings.history_length))
-
+    # Recent full detections, used to build the ML feature vector.
     samples: deque = field(default_factory=lambda: deque(maxlen=settings.history_length))
 
     status: str = "active"
     classification: str = "unknown"
     confidence: float = 0.0
+    evidence: list = field(default_factory=list)
+    evidence_summary: str = ""
+    ticks_since_explain: int = 99
     detection_count: int = 0
     closest_approach_m: float = float("inf")
     max_speed_mps: float = 0.0
@@ -56,6 +66,8 @@ class Track:
             detection_count=self.detection_count,
             closest_approach_m=round(self.closest_approach_m, 1),
             in_alert_zone=self.in_alert_zone,
+            evidence=[EvidenceItem(**item) for item in self.evidence],
+            evidence_summary=self.evidence_summary,
             history=[
                 TrackPoint(
                     lat=p["lat"],
@@ -82,6 +94,7 @@ class TrackManager:
 
     # ------------------------------------------------------------- update
     def update(self, detections: list[dict]) -> list[EventOut]:
+        """Fold this tick's detections into the track picture."""
         events: list[EventOut] = []
 
         for d in detections:
@@ -123,11 +136,27 @@ class TrackManager:
             track.max_speed_mps = max(track.max_speed_mps, d["speed_mps"])
             self.total_detections += 1
 
-            # --- classify -------------------------------------------------
-            previous = track.classification
-            label, confidence = classifier.predict(list(track.samples))
+        # --- classify, in one batch -----------------------------------------
+
+        touched = [self.tracks[d["track_id"]] for d in detections]
+        previous_labels = [t.classification for t in touched]
+        verdicts = classifier.predict_many([list(t.samples) for t in touched])
+
+        for track, previous, (label, confidence) in zip(touched, previous_labels, verdicts):
             track.classification = label
             track.confidence = confidence
+            d = track.latest
+            tid = track.track_id
+
+            # Evidence 
+
+            track.ticks_since_explain += 1
+            if label != previous or track.ticks_since_explain >= EXPLAIN_EVERY_N_TICKS:
+                track.evidence = classifier.explain(list(track.samples), label)
+                track.evidence_summary = classifier.summarise(
+                    label, confidence, track.evidence
+                )
+                track.ticks_since_explain = 0
 
             if label != previous and label != "unknown":
                 events.append(
@@ -162,7 +191,7 @@ class TrackManager:
 
     # --------------------------------------------------------------- prune
     def prune(self, departed: list[str] | None = None) -> list[EventOut]:
-
+        """Close tracks that left coverage or stopped reporting."""
         events: list[EventOut] = []
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(seconds=settings.track_timeout_seconds)
@@ -194,6 +223,7 @@ class TrackManager:
 
     # ------------------------------------------------------------ readers
     def active(self) -> list[Track]:
+        """Active tracks, closest first — the order the operator cares about."""
         return sorted(self.tracks.values(), key=lambda t: t.latest.get("distance_m", 1e9))
 
     def snapshot(self) -> list[TrackOut]:

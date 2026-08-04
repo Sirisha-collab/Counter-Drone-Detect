@@ -1,7 +1,3 @@
-/**
- * These mirror `backend/app/schemas.py` exactly. If you change a field there,
- * change it here too — TypeScript can't see across the wire for you.
- */
 
 export type Classification = "drone" | "bird" | "clutter" | "unknown";
 export type Severity = "info" | "caution" | "alert";
@@ -18,6 +14,17 @@ export interface TrackPoint {
   speed_mps: number;
   heading_deg: number;
   rssi_dbm: number;
+}
+
+/** One reason behind a classification, with the number it rests on. */
+export interface EvidenceItem {
+  feature: string;
+  label: string;
+  value: number;
+  display_value: string;
+  contribution: number;
+  direction: "supports" | "opposes";
+  statement: string;
 }
 
 export interface Track {
@@ -41,6 +48,9 @@ export interface Track {
   detection_count: number;
   closest_approach_m: number;
   in_alert_zone: boolean;
+
+  evidence: EvidenceItem[];
+  evidence_summary: string;
 
   history: TrackPoint[];
 }

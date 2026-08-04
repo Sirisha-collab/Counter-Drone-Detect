@@ -257,6 +257,23 @@ async def get_events(
     return [EventOut.model_validate(row) for row in result.scalars().all()]
 
 
+@app.get("/api/tracks/{track_id}/evidence")
+async def get_track_evidence(track_id: str) -> dict:
+    """Why this track carries the classification it does."""
+    track = track_manager.tracks.get(track_id)
+    if track is None:
+        return {"track_id": track_id, "found": False, "evidence": []}
+    return {
+        "track_id": track_id,
+        "found": True,
+        "classification": track.classification,
+        "confidence": round(track.confidence, 3),
+        "summary": track.evidence_summary,
+        "evidence": track.evidence,
+        "method": classifier.info().get("explain_method", "unknown"),
+    }
+
+
 @app.get("/api/model")
 async def get_model_info() -> dict:
     return classifier.info()

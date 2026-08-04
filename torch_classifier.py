@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 from ..config import settings
+from .explain import FEATURE_META, build_statement
 from .features import CLASS_LABELS
 from .sequence import SEQ_CHANNELS, SEQ_LEN, build_sequence
 
@@ -9,9 +10,7 @@ log = logging.getLogger(__name__)
 
 
 def build_network(n_classes: int = 3, hidden: int = 48, layers: int = 2):
-    """
-    A two-layer GRU over the report sequence.
-    """
+
     import torch.nn as nn
 
     class TrackGRU(nn.Module):
@@ -30,8 +29,8 @@ def build_network(n_classes: int = 3, hidden: int = 48, layers: int = 2):
             )
 
         def forward(self, x):
-            # x: (batch, SEQ_LEN, channels). 
-            
+            # x: (batch, SEQ_LEN, channels). Take the final step's hidden state —
+            # by then the GRU has read the whole window.
             output, _ = self.gru(x)
             return self.head(output[:, -1])
 
@@ -103,10 +102,102 @@ class TorchTrackClassifier:
             log.exception("PyTorch prediction failed.")
             return "unknown", 0.0
 
+    # -------------------------------------------------------- predict_many
+    def predict_many(self, batch: list[list[dict]]) -> list[tuple[str, float]]:
+ 
+        results: list[tuple[str, float]] = [("unknown", 0.0)] * len(batch)
+        if self.model is None or not batch:
+            return results
+
+        rows, positions = [], []
+        for i, samples in enumerate(batch):
+            if len(samples) < settings.min_points_for_classification:
+                continue
+            steps = build_sequence(samples)
+            if steps:
+                rows.append(steps)
+                positions.append(i)
+
+        if not rows:
+            return results
+
+        try:
+            import torch
+
+            with torch.no_grad():
+                probabilities = torch.softmax(
+                    self.model(torch.tensor(rows, dtype=torch.float32)), dim=1
+                )
+            for i, proba in zip(positions, probabilities):
+                index = int(proba.argmax())
+                results[i] = (self.labels[index], float(proba[index]))
+        except Exception:
+            log.exception("Batch PyTorch prediction failed.")
+
+        return results
+
+    # ------------------------------------------------------------ explain
+    def explain(self, samples: list[dict], label: str) -> list[dict]:
+       
+        if self.model is None or label == "unknown":
+            return []
+
+        steps = build_sequence(samples)
+        if not steps:
+            return []
+
+        try:
+            import torch
+
+            index = self.labels.index(label)
+            with torch.no_grad():
+                base = torch.tensor([steps], dtype=torch.float32)
+                baseline = float(torch.softmax(self.model(base), dim=1)[0][index])
+
+                evidence = []
+                for channel in range(len(SEQ_CHANNELS)):
+                    flattened = [row[:] for row in steps]
+                    mean = sum(row[channel] for row in steps) / len(steps)
+                    for row in flattened:
+                        row[channel] = mean
+
+                    occluded = torch.tensor([flattened], dtype=torch.float32)
+                    dropped = baseline - float(
+                        torch.softmax(self.model(occluded), dim=1)[0][index]
+                    )
+
+                    name = SEQ_CHANNELS[channel]
+                    latest = steps[-1][channel]
+                    evidence.append(
+                        {
+                            "feature": name,
+                            "label": FEATURE_META.get(name, (name.replace("_", " "), "", 2))[0],
+                            "value": round(latest, 3),
+                            "display_value": f"{latest:.2f} (normalised)",
+                            "contribution": round(dropped, 4),
+                            "direction": "supports" if dropped >= 0 else "opposes",
+                            "statement": build_statement(name, latest),
+                        }
+                    )
+
+            evidence.sort(key=lambda item: abs(item["contribution"]), reverse=True)
+            return evidence[:4]
+        except Exception:
+            log.exception("Could not build evidence for the PyTorch model.")
+            return []
+
+    @staticmethod
+    def summarise(label: str, confidence: float, evidence: list[dict]) -> str:
+        from .explain import summarise as _summarise
+
+        return _summarise(label, confidence, evidence)
+
     def info(self) -> dict:
         return {
             "ready": self.ready,
             "backend": "pytorch",
+            "explainable": True,
+            "explain_method": "channel occlusion",
             "path": str(self.model_path),
             "kind": "GRU sequence classifier" if self.model else "not loaded",
             "sequence_length": SEQ_LEN,
