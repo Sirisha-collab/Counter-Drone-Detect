@@ -1,0 +1,11 @@
+# Optional — only needed if you set CLASSIFIER_BACKEND=torch.
+#
+#   pip install -r requirements-torch.txt
+#
+# This pulls the default build, which includes CUDA support on Linux and is
+# large (~2 GB). The model here is tiny and trains in under a minute on CPU,
+# so the CPU-only wheel is usually the better choice:
+#
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#
+torch>=2.6

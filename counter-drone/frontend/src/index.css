@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+
+@theme {
+  /* Surfaces — white page, white panels separated by a hairline */
+  --color-void: #ffffff;
+  --color-panel: #ffffff;
+  --color-raised: #f1f5f9;
+  --color-line: #d8dfe8;
+
+  /* Text */
+  --color-ink: #0b0f14;
+  --color-muted: #5a6878;
+
+  /* Status — darkened so they stay legible on white */
+  --color-ice: #0a7ea4;
+  --color-amber: #b26a00;
+  --color-rose: #d01b3c;
+  --color-sage: #157f4e;
+
+  --font-display: "Barlow Condensed", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --tracking-label: 0.18em;
+
+  --animate-pulse-ring: pulse-ring 1.8s ease-out infinite;
+  --animate-slide-in: slide-in 220ms ease-out;
+
+  @keyframes pulse-ring {
+    0% {
+      opacity: 0.9;
+      transform: scale(0.85);
+    }
+
+    70%,
+    100% {
+      opacity: 0;
+      transform: scale(1.6);
+    }
+  }
+
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-void text-ink font-sans antialiased;
+    /* A faint wash at the top so the header reads as attached to something. */
+    background-image: linear-gradient(to bottom,
+        rgb(10 126 164 / 0.04),
+        transparent 220px);
+    background-attachment: fixed;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-line;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted/50;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ice/70 ring-offset-2 ring-offset-void;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Three recurring pieces, so the same decision isn't retyped everywhere.
+--------------------------------------------------------------------- */
+@utility panel {
+  @apply rounded-lg border border-line bg-panel;
+}
+
+/* Small tracked-out uppercase label — the instrument-legend voice. */
+@utility legend {
+  @apply font-display text-[11px] font-medium uppercase text-muted;
+  letter-spacing: var(--tracking-label);
+}
+
+@utility readout {
+  @apply font-mono tabular-nums;
+}
+
+/* ---------------------------------------------------------------------
+   Leaflet, dressed for a light panel.
+--------------------------------------------------------------------- */
+.leaflet-container {
+  background: #f1f5f9;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.leaflet-control-attribution {
+  background: rgb(255 255 255 / 0.85) !important;
+  color: #6b7889 !important;
+  font-size: 10px !important;
+}
+
+.leaflet-control-attribution a {
+  color: #0a7ea4 !important;
+}
+
+.leaflet-control-zoom a {
+  background: #ffffff !important;
+  color: #0b0f14 !important;
+  border-color: #d8dfe8 !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #f1f5f9 !important;
+}
+
+.compass-tick {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: #7d8b9c;
+  background: none;
+  border: none;
+}
+
+.range-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  color: #8e9bab;
+  background: none;
+  border: none;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,21 @@
+# Install with:  pip install -r requirements.txt
+#
+# Floors rather than exact pins, so you get current releases. If you want a
+# reproducible build later, run `pip freeze > requirements.lock.txt`.
+
+# --- Web framework ----------------------------------------------------
+fastapi>=0.116
+uvicorn[standard]>=0.35
+
+# --- Config -----------------------------------------------------------
+pydantic>=2.11
+pydantic-settings>=2.8
+
+# --- PostgreSQL (async) -----------------------------------------------
+sqlalchemy[asyncio]>=2.0.40
+asyncpg>=0.30
+
+# --- Machine learning -------------------------------------------------
+scikit-learn>=1.6
+numpy>=2.2
+joblib>=1.4

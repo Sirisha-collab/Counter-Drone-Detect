@@ -1,0 +1,26 @@
+# Brings up PostgreSQL only — the backend and frontend run on your machine
+# with hot reload, which is easier to learn from than a container rebuild.
+#
+#   docker compose up -d
+#
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cuas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cuas
+      POSTGRES_PASSWORD: cuas
+      POSTGRES_DB: cuas
+    ports:
+      - "5432:5432"
+    volumes:
+      - cuas-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cuas -d cuas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  cuas-pgdata:
