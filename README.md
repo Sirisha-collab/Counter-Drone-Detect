@@ -17,5 +17,6 @@ React 19, Vite 7, Tailwind CSS v4, react-leaflet 5. Tailwind v4
 DASHBOARD
 <img width="1913" height="958" alt="Screenshot 2026-08-04 112413" src="https://github.com/user-attachments/assets/56e92976-1285-4034-a333-7e818445e0c5" />
 
+ABOUT DRONES
 <img width="1805" height="787" alt="Screenshot 2026-08-04 112435" src="https://github.com/user-attachments/assets/49330c1a-f107-4a6a-adf5-2b342f7c7f5e" />
 
