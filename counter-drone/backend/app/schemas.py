@@ -22,6 +22,10 @@ class DetectionOut(BaseModel):
 
 
 class TrackPoint(BaseModel):
+    """
+    One past report. Carries every sensor channel, not just position, so the
+    dashboard can draw a sparkline for each channel without a second request.
+    """
 
     lat: float
     lon: float
@@ -36,6 +40,7 @@ class TrackPoint(BaseModel):
 
 
 class EvidenceItem(BaseModel):
+    """One reason behind a classification, with the number it rests on."""
 
     feature: str          # machine name, e.g. "heading_std_deg"
     label: str            # human name, e.g. "Turn per report"
@@ -46,12 +51,39 @@ class EvidenceItem(BaseModel):
     statement: str        # a sentence the operator can check
 
 
+class ScoreFactor(BaseModel):
+    """One component of the priority score, with the points it contributed."""
+
+    name: str
+    points: float
+    max: float
+    note: str
+
+
+class ConfidenceBasis(BaseModel):
+    """One input to the calibrated confidence."""
+
+    name: str
+    value: float
+    note: str
+
+
 class TrackOut(BaseModel):
+    """A live track as shown on the map and in the track list."""
 
     track_id: str
-    status: str
+    status: str            # active | coasting
+    confirmed: bool
+    coasted_ticks: int
     classification: str
-    confidence: float
+    confidence: float             # raw model probability
+    confidence_calibrated: float  # tempered by track maturity and stability
+    confidence_basis: list[ConfidenceBasis]
+
+    priority_score: int           # 0-100, how much operator attention is due
+    priority_level: str           # routine | watch | elevated | urgent
+    priority_summary: str
+    priority_factors: list[ScoreFactor]
 
     lat: float
     lon: float
@@ -92,6 +124,15 @@ class Stats(BaseModel):
     active_tracks: int
     drone_tracks: int
     alerts_active: int
+    top_priority: int
+    priority_tracks: int   # tracks at "elevated" or above
+
+    # Data-association health
+    id_switches: int            # times a track swapped onto a different object
+    tentative_tracks: int       # seen once, not yet confirmed
+    coasting_tracks: int        # predicted through a missed detection
+    association_method: str
+    contested_detections: int   # detections inside more than one track's gate
     tracks_opened: int
     tracks_lost: int
     uptime_seconds: float
@@ -107,6 +148,7 @@ class SensorInfo(BaseModel):
 
 
 class LiveFrame(BaseModel):
+    """The payload pushed over the WebSocket on every tick."""
 
     type: str = "frame"
     timestamp: datetime

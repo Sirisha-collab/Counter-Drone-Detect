@@ -1,5 +1,12 @@
 """
 FastAPI entry point.
+
+Start it with:
+
+    uvicorn app.main:app --reload --port 8000
+
+On startup it creates the tables, starts the simulation loop as a background
+task, and begins pushing frames to any browser on /ws/live.
 """
 
 import asyncio
@@ -58,13 +65,25 @@ def build_frame(events: list[EventOut]) -> LiveFrame:
 
 # ---------------------------------------------------------------- persistence
 async def persist(detections: list[dict], events: list[EventOut]) -> None:
+    """
+    Write this tick to PostgreSQL. Failures are logged, never fatal.
 
+    Detections are anonymous as they leave the sensor, so we record them under
+    whichever track claimed them. `track_manager.assigned_ids` holds that
+    mapping for the tick that just ran.
+    """
     try:
+        assigned = track_manager.assigned_ids
         async with SessionLocal() as session:
-            for d in detections:
+            for i, d in enumerate(detections):
+                track_id = assigned.get(i)
+                if track_id is None:
+                    # Claimed by nothing and started no track — nothing to file
+                    # it under. Rare, but it is the honest outcome.
+                    continue
                 session.add(
                     Detection(
-                        track_id=d["track_id"],
+                        track_id=track_id,
                         timestamp=d["timestamp"],
                         distance_m=d["distance_m"],
                         bearing_deg=d["bearing_deg"],
@@ -77,9 +96,9 @@ async def persist(detections: list[dict], events: list[EventOut]) -> None:
                     )
                 )
 
-            # Upsert the track summary rows.
-            for d in detections:
-                t = track_manager.tracks.get(d["track_id"])
+            # Upsert the track summary rows, once per track that was touched.
+            for track_id in set(assigned.values()):
+                t = track_manager.tracks.get(track_id)
                 if not t:
                     continue
                 stmt = pg_insert(Track).values(
@@ -271,6 +290,52 @@ async def get_track_evidence(track_id: str) -> dict:
         "summary": track.evidence_summary,
         "evidence": track.evidence,
         "method": classifier.info().get("explain_method", "unknown"),
+    }
+
+
+@app.get("/api/tracks/priority")
+async def get_priority_board() -> list[dict]:
+    """Active tracks ranked by operator priority, highest first."""
+    return [
+        {
+            "track_id": t.track_id,
+            "classification": t.classification,
+            "confidence": round(t.confidence, 3),
+            "confidence_calibrated": round(t.confidence_calibrated, 3),
+            "distance_m": t.latest.get("distance_m"),
+            "priority_score": t.priority_score,
+            "priority_level": t.priority_level,
+            "summary": t.priority_summary,
+            "factors": t.priority_factors,
+        }
+        for t in track_manager.active()
+    ]
+
+
+@app.get("/api/association")
+async def get_association_health() -> dict:
+    """
+    How well the tracker is keeping identities straight.
+
+    `id_switches` is measurable only because the simulator knows the truth. A
+    real deployment cannot compute this — which is exactly why association is
+    hard to validate in the field.
+    """
+    counts = track_manager.counts()
+    return {
+        "method": counts["association_method"],
+        "id_switches": counts["id_switches"],
+        "tracks_opened": counts["tracks_opened"],
+        "switches_per_track": round(
+            counts["id_switches"] / max(1, counts["tracks_opened"]), 3
+        ),
+        "tentative_tracks": counts["tentative_tracks"],
+        "coasting_tracks": counts["coasting_tracks"],
+        "contested_detections": counts["contested_detections"],
+        "note": (
+            "Detections arrive with no identity. Track IDs are assigned by "
+            "gating and assignment in app/association.py."
+        ),
     }
 
 
