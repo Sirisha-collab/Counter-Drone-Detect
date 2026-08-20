@@ -6,6 +6,7 @@ import { TrackList } from "./components/TrackList";
 import { EventLog } from "./components/EventLog";
 import { SensorChannels } from "./components/SensorChannels";
 import { EvidencePanel } from "./components/EvidencePanel";
+import { PriorityPanel } from "./components/PriorityPanel";
 import { useLiveFeed } from "./hooks/useLiveFeed";
 
 export default function App() {
@@ -69,6 +70,8 @@ export default function App() {
         </div>
 
         {sensor && <SensorChannels track={selected} sensor={sensor} />}
+
+        <PriorityPanel track={selected} />
 
         <EvidencePanel track={selected} />
 

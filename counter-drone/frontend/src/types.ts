@@ -1,6 +1,11 @@
+/**
+ * These mirror `backend/app/schemas.py` exactly. If you change a field there,
+ * change it here too — TypeScript can't see across the wire for you.
+ */
 
 export type Classification = "drone" | "bird" | "clutter" | "unknown";
 export type Severity = "info" | "caution" | "alert";
+export type PriorityLevel = "routine" | "watch" | "elevated" | "urgent";
 
 /** One past report — every sensor channel, so each can be sparklined. */
 export interface TrackPoint {
@@ -27,11 +32,35 @@ export interface EvidenceItem {
   statement: string;
 }
 
+/** One component of the priority score. */
+export interface ScoreFactor {
+  name: string;
+  points: number;
+  max: number;
+  note: string;
+}
+
+/** One input to the calibrated confidence. */
+export interface ConfidenceBasis {
+  name: string;
+  value: number;
+  note: string;
+}
+
 export interface Track {
   track_id: string;
-  status: string;
+  status: string; // "active" | "coasting"
+  confirmed: boolean;
+  coasted_ticks: number;
   classification: Classification;
   confidence: number;
+  confidence_calibrated: number;
+  confidence_basis: ConfidenceBasis[];
+
+  priority_score: number;
+  priority_level: PriorityLevel;
+  priority_summary: string;
+  priority_factors: ScoreFactor[];
 
   lat: number;
   lon: number;
@@ -69,6 +98,14 @@ export interface Stats {
   active_tracks: number;
   drone_tracks: number;
   alerts_active: number;
+  top_priority: number;
+  priority_tracks: number;
+
+  id_switches: number;
+  tentative_tracks: number;
+  coasting_tracks: number;
+  association_method: string;
+  contested_detections: number;
   tracks_opened: number;
   tracks_lost: number;
   uptime_seconds: number;

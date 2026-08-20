@@ -38,9 +38,25 @@ export function StatStrip({ stats }: StatStripProps) {
       tone: stats && stats.alerts_active > 0 ? "text-rose" : undefined,
     },
     {
-      label: "Opened / retired",
-      value: stats ? `${stats.tracks_opened} / ${stats.tracks_lost}` : "—",
-      hint: "track lifecycle totals",
+      label: "Top priority",
+      value: stats ? `${stats.top_priority}` : "—",
+      hint: stats
+        ? `${stats.priority_tracks} track${stats.priority_tracks === 1 ? "" : "s"} elevated or above`
+        : "highest score on screen",
+      tone:
+        stats && stats.top_priority >= 75
+          ? "text-rose"
+          : stats && stats.top_priority >= 50
+            ? "text-amber"
+            : undefined,
+    },
+    {
+      label: "ID switches",
+      value: stats ? String(stats.id_switches) : "—",
+      hint: stats
+        ? `${stats.association_method} assignment · ${stats.contested_detections} contested now`
+        : "tracks that swapped onto another object",
+      tone: stats && stats.id_switches > 0 ? "text-amber" : undefined,
     },
     {
       label: "Running",

@@ -1,4 +1,4 @@
-import type { Classification, Severity } from "../types";
+import type { Classification, PriorityLevel, Severity } from "../types";
 
 /** Under a kilometre, metres read better than a decimal. */
 export function formatRange(metres: number): string {
@@ -82,3 +82,18 @@ export const SEVERITY_COLOR: Record<Severity, string> = {
 };
 
 export const ALERT_COLOR = "#D01B3C";
+
+/** Priority levels get their own ramp, separate from classification colour. */
+export const PRIORITY_COLOR: Record<PriorityLevel, string> = {
+  routine: "#5A6878",
+  watch: "#0A7EA4",
+  elevated: "#B26A00",
+  urgent: "#D01B3C",
+};
+
+export const PRIORITY_TEXT: Record<PriorityLevel, string> = {
+  routine: "text-muted",
+  watch: "text-ice",
+  elevated: "text-amber",
+  urgent: "text-rose",
+};

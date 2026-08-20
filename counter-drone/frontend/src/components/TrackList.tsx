@@ -2,6 +2,7 @@ import type { SensorInfo, Track } from "../types";
 import { BearingDial } from "./BearingDial";
 import {
   ALERT_COLOR,
+  PRIORITY_TEXT,
   CLASS_COLOR,
   CLASS_TEXT,
   formatBearing,
@@ -22,7 +23,7 @@ export function TrackList({ tracks, sensor, selectedId, onSelect }: TrackListPro
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
         <h2 className="legend">Active tracks</h2>
         <span className="readout text-[11px] text-muted">
-          {tracks.length} held · nearest first
+          {tracks.length} held · highest priority first
         </span>
       </div>
 
@@ -65,6 +66,20 @@ export function TrackList({ tracks, sensor, selectedId, onSelect }: TrackListPro
                         {track.classification}
                         {track.confidence > 0 && ` ${Math.round(track.confidence * 100)}%`}
                       </span>
+                      <span
+                        className={`ml-auto readout text-[11px] ${PRIORITY_TEXT[track.priority_level]}`}
+                        title={track.priority_summary}
+                      >
+                        {track.priority_score}
+                      </span>
+                      {track.status === "coasting" && (
+                        <span
+                          className="rounded border border-muted/40 px-1.5 py-px font-display text-[9px] font-semibold uppercase tracking-label text-muted"
+                          title={`No detection matched this track for ${track.coasted_ticks} tick(s) — position is predicted, not measured.`}
+                        >
+                          Coasting
+                        </span>
+                      )}
                       {track.in_alert_zone && (
                         <span className="rounded border border-rose/40 bg-rose/10 px-1.5 py-px font-display text-[9px] font-semibold uppercase tracking-label text-rose">
                           In ring
